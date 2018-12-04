@@ -1,6 +1,6 @@
 import yaml
 import  os
-main_image_directory = "/home/dm309/adni_preprocessed"
+main_image_directory = "/home/ben/adni_preprocessed"
 chosen_epi_format=["MP-RAGE","MPRAGE"]
 strict_match=True
 yaml_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),"init_yaml.yml")
@@ -16,7 +16,7 @@ ncols = 4
 
 
 #(20,20,20)
-img_shape_tuple=(64,64,64)
+img_shape_tuple=(128,128,128)
 train_ad_fnames = None
 img_channel=1
 train_mci_fnames = None
@@ -24,7 +24,7 @@ train_nc_fnames = None
 source="1.5T"
 target="3.0T"
 training_frac=80/100
-classify_group=["AD","NC",'MCI']
+classify_group=["AD",'NC','MCI']
 
 # Index for iterating over images
 pic_index = 0

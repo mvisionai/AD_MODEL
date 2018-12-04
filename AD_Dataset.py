@@ -201,7 +201,7 @@ class Dataset_Import(object):
         #img_to_array
         determine_shape = np.resize(img_data, self.img_shape_tuple)
         #print("data",normalise_zero_one(determine_shape+ np.random.normal(0, 0.05, determine_shape.shape)))
-        return determine_shape
+        return normalise_zero_one(determine_shape)
         #normalise_zero_one(
         #determine_shape*(1./255)
 
@@ -231,9 +231,9 @@ class Dataset_Import(object):
         if img_label=="AD":
             label=0
         elif img_label=="MCI":
-            label=2
-        elif img_label=="NC":
             label=1
+        elif img_label=="NC":
+            label=2
 
         return  label
 
@@ -324,12 +324,13 @@ class Dataset_Import(object):
         return data[0:self.training_number(len(data))]
 
     def validation_data_source(self, data):
-        data[self.training_number(len(data)) + 1:len(data) - 1]
+
+       return data[self.training_number(len(data)) + 1:len(data) - 1]
 
 
 
     def validation_data_target(self, data):
-        data[self.training_number(len(data)) + 1:len(data) - 1]
+       return data[self.training_number(len(data)) + 1:len(data) - 1]
 
 
     def training_data_target(self,data):
@@ -643,6 +644,24 @@ class Dataset_Import(object):
                yield  np.resize(self.convert_batch_to_img_data(data[c]),(self.img_shape_tuple[0],self.img_shape_tuple[1],self.img_shape_tuple[2],self.img_channel)), self.all_source_labels(
                   data[c]), self.encode_domain_labels(data[c])
 
+
+    def all_convert_validation_target_data(self,data_list):
+        data = self.shuffle(data_list)
+        # datas = [self.convert_nii_to_image_data(data[i][col]) for i in range(len(data))]
+
+
+        if len(self.img_shape_tuple) == 2:
+            for c in range(len(data_list)):
+                yield np.resize(self.convert_batch_to_img_data(data[c]), (
+                len(data), self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_channel)), self.all_source_labels(
+                    data[c]), self.encode_domain_labels(data[c])
+
+        elif len(self.img_shape_tuple) == 3:
+            for c in range(len(data_list)):
+                yield np.resize(self.convert_batch_to_img_data(data[c]), (
+                self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_shape_tuple[2],
+                self.img_channel)), self.all_source_labels(
+                    data[c]), self.encode_domain_labels(data[c])
 
 
 

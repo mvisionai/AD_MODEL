@@ -41,6 +41,7 @@ class Dataset_Import(object):
         self.img_shape_tuple=constants.img_shape_tuple
         self.img_channel=constants.img_channel
         self.shu_control_state=False
+        self.data_augmentation=constants.augment_data
 
         self.image_group=constants.chosen_epi_format
         self.strict_match=constants.strict_match
@@ -82,7 +83,7 @@ class Dataset_Import(object):
         print('total validation MCI Data:', len(self.readNiiFiles(self.validation_mci_dir)), end="\n")
         print('total validation NC Data:', len(self.readNiiFiles(self.validation_nc_dir)), end="\n")
 
-    def readNiiFiles(self,original_dir):
+    def readNiiFiles(self,original_dir,augment_data=False):
         # creating destinations folders
         counter = 0
         group_data = []
@@ -93,17 +94,23 @@ class Dataset_Import(object):
             source = '1.5T'
         elif domain_class =='validate':
             source='3.0T'
+
+        checker_file=""
         for root, dir, f_names in os.walk(original_dir):
             for f in f_names:
                 if f.lower().find(".nii") > -1:
 
                     sourcefile = os.path.join(root, f)
-
                     try:
-                        label = self.get_nii_group(ad_class)
-                        source_label = self.get_nii_source(source)
+                        label =self.get_nii_group(ad_class)
+
+                        source_label =source# self.get_nii_source(source)
 
                         group_data.append([sourcefile, label, source_label])
+
+                        if augment_data == True:
+                          sourcefile = sourcefile.replace('.nii','_aug.nii')
+                          group_data.append([sourcefile, label, source_label])
                         #print("data" ,[sourcefile, label, source_label])
 
                     except (IOError, OSError) as e:
@@ -194,14 +201,23 @@ class Dataset_Import(object):
 
 
     def convert_nii_to_image_data(self,nii_path):
-        image_load = nib.load(nii_path, mmap=False)
 
-        img_data = np.asarray(image_load.get_data())
+        if nii_path.find("_aug.nii") > -1:
+            nii_path = nii_path.replace('_aug.nii','.nii')
+            image_load = nib.load(nii_path, mmap=False)
+            img_data = self.dataAugment(np.asarray(image_load.get_data()))
+        else:
+
+            image_load = nib.load(nii_path, mmap=False)
+            img_data = np.asarray(image_load.get_data())
+
+
+
 
         #img_to_array
         determine_shape = np.resize(img_data, self.img_shape_tuple)
         #print("data",normalise_zero_one(determine_shape+ np.random.normal(0, 0.05, determine_shape.shape)))
-        return normalise_zero_one(determine_shape)
+        return determine_shape
         #normalise_zero_one(
         #determine_shape*(1./255)
 
@@ -231,9 +247,9 @@ class Dataset_Import(object):
         if img_label=="AD":
             label=0
         elif img_label=="MCI":
-            label=1
-        elif img_label=="NC":
             label=2
+        elif img_label=="NC":
+            label=1
 
         return  label
 
@@ -247,17 +263,17 @@ class Dataset_Import(object):
 
         return source_label
 
-    def all_source_data(self):
+    def all_source_data(self,augment_data=False):
 
 
        if "AD" in constants.classify_group:
-          all_ad_train = self.readNiiFiles(self.train_ad_dir)
+          all_ad_train = self.readNiiFiles(self.train_ad_dir,augment_data=augment_data)
 
        if "MCI" in constants.classify_group:
-           all_mci_train = self.readNiiFiles(self.train_mci_dir)
+           all_mci_train = self.readNiiFiles(self.train_mci_dir,augment_data=augment_data)
 
        if "NC" in constants.classify_group:
-         all_nc_train = self.readNiiFiles(self.train_nc_dir)
+         all_nc_train = self.readNiiFiles(self.train_nc_dir,augment_data=augment_data)
 
        data_feed=[]
 
@@ -277,16 +293,17 @@ class Dataset_Import(object):
 
        return  self.shuffle(all_source)
 
-    def all_target_data(self):
+    def all_target_data(self,augment_data=False):
 
         if "AD" in constants.classify_group:
-            all_ad_target = self.readNiiFiles(self.validation_ad_dir)
+            all_ad_target = self.readNiiFiles(self.validation_ad_dir,augment_data)
+
 
         if "MCI" in constants.classify_group:
-            all_mci_target = self.readNiiFiles(self.validation_mci_dir)
+            all_mci_target = self.readNiiFiles(self.validation_mci_dir,augment_data)
 
         if "NC" in constants.classify_group:
-            all_nc_target = self.readNiiFiles(self.validation_nc_dir)
+            all_nc_target = self.readNiiFiles(self.validation_nc_dir,augment_data)
 
         data_feed = []
 
@@ -324,13 +341,12 @@ class Dataset_Import(object):
         return data[0:self.training_number(len(data))]
 
     def validation_data_source(self, data):
-
-       return data[self.training_number(len(data)) + 1:len(data) - 1]
+        data[self.training_number(len(data)) + 1:len(data) - 1]
 
 
 
     def validation_data_target(self, data):
-       return data[self.training_number(len(data)) + 1:len(data) - 1]
+        data[self.training_number(len(data)) + 1:len(data) - 1]
 
 
     def training_data_target(self,data):
@@ -376,12 +392,12 @@ class Dataset_Import(object):
 
     def show_image(self):
         # Set up matplotlib fig, and size it to fit 4x4 pics
-        self.statistics()
+        #self.statistics()
 
         next_ad_pix = [fname
-                        for fname in self.readNiiFiles(self.train_ad_dir)]
+                        for fname in self.readNiiFiles(self.validation_nc_dir,augment_data=False)]
 
-
+        print(len(next_ad_pix))
 
         for i, img_path in enumerate(next_ad_pix):
             # Set up subplot; subplot indices start at 1
@@ -389,25 +405,28 @@ class Dataset_Import(object):
             #sp.axis('Off')  # Don't show axes (or gridlines)
 
             #np.set_printoptions(threshold=np.nan)
-            print(img_path)
-            image_load = nib.load(img_path[0],
-                                  mmap=False)
+
+            #print(img_path)
+            image_load = nib.load(img_path[0],mmap=False)
 
 
             print("first_shape ",image_load.get_data().shape)
-            loads = img_to_array(image_load.get_data())
+            #loads = img_to_array(image_load.get_data())
 
-            print(loads.shape)
+            #print(loads.shape)
             #normalizing=normalise_zero_one(loads)
             #print(normalizing)
             #print(self.dataAugment(normalizing))
-            break
+            #break
 
-
+    #
     def dataAugment(self,image):
 
+
+        flip_value=round(np.random.random_integers(10)*0.1,1)
         seq=iaa.Sequential([
-            iaa.Fliplr(0.5)
+            iaa.Fliplr(flip_value),
+
 
         ])
 
@@ -553,10 +572,11 @@ class Dataset_Import(object):
         elif len(self.img_shape_tuple) == 3:
             for c in range(batch_size):
 
+               yield np.resize(np.asarray(self.convert_batch_to_img_data(batch_data[c])),
+               (self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_shape_tuple[2], self.img_channel)),batch_data[c][1],batch_data[c][2]
 
-
-                yield np.resize(self.convert_batch_to_img_data(batch_data[c]),
-                                (self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_shape_tuple[2], self.img_channel)),self.all_source_labels(batch_data[c]),self.encode_domain_labels(batch_data[c])
+        #yield np.resize(self.convert_batch_to_img_data(batch_data[c]),
+                                #(self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_shape_tuple[2], self.img_channel)),self.all_source_labels(batch_data[c]),self.encode_domain_labels(batch_data[c])
 
 
 
@@ -644,24 +664,6 @@ class Dataset_Import(object):
                yield  np.resize(self.convert_batch_to_img_data(data[c]),(self.img_shape_tuple[0],self.img_shape_tuple[1],self.img_shape_tuple[2],self.img_channel)), self.all_source_labels(
                   data[c]), self.encode_domain_labels(data[c])
 
-
-    def all_convert_validation_target_data(self,data_list):
-        data = self.shuffle(data_list)
-        # datas = [self.convert_nii_to_image_data(data[i][col]) for i in range(len(data))]
-
-
-        if len(self.img_shape_tuple) == 2:
-            for c in range(len(data_list)):
-                yield np.resize(self.convert_batch_to_img_data(data[c]), (
-                len(data), self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_channel)), self.all_source_labels(
-                    data[c]), self.encode_domain_labels(data[c])
-
-        elif len(self.img_shape_tuple) == 3:
-            for c in range(len(data_list)):
-                yield np.resize(self.convert_batch_to_img_data(data[c]), (
-                self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_shape_tuple[2],
-                self.img_channel)), self.all_source_labels(
-                    data[c]), self.encode_domain_labels(data[c])
 
 
 
@@ -759,8 +761,9 @@ class Dataset_Import(object):
 if __name__=="__main__"    :
 
    try:
+        np.set_printoptions(threshold=np.NAN)
         dataset_feed=Dataset_Import()
-        print(len(dataset_feed.all_target_data()))
+        print(dataset_feed.show_image())
    except Exception as ex:
       print(ex)
       raise

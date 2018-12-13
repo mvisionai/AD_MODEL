@@ -1,7 +1,7 @@
 import yaml
 import  os
-main_image_directory = "/home/ben/adni_preprocessed"
-chosen_epi_format=["MP-RAGE","MPRAGE"]
+main_image_directory = "M:\LabWork\ADNI_STATISTICS\ADNI"
+chosen_epi_format=["MP-RAGE","MPRAGE","MP-RAGE_REPEAT","MPRAGE_Repeat","MPRAGE_GRAPPA2"]
 strict_match=True
 yaml_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),"init_yaml.yml")
 
@@ -12,11 +12,11 @@ not_trained=["fc1layer","fc2layer","fc3layer","domain_predictor"]
 # os.kill(os.getpid(), signal.pthread_kill())
 nrows = 24
 ncols = 4
-
+augment_data=False
 
 
 #(20,20,20)
-img_shape_tuple=(128,128,128)
+img_shape_tuple=(200,248,248)
 train_ad_fnames = None
 img_channel=1
 train_mci_fnames = None
@@ -29,7 +29,7 @@ classify_group=["AD",'NC','MCI']
 # Index for iterating over images
 pic_index = 0
 train_dir = os.path.join(main_image_directory, 'train')
-validation_dir = os.path.join(main_image_directory, 'validate')
+validation_dir = os.path.join(main_image_directory, 'validation')
 
 # Directory with our training AD dataset
 train_ad_dir = os.path.join(train_dir, 'AD')

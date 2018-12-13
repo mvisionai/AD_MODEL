@@ -92,30 +92,42 @@ class Dataset_Import(object):
 
         if domain_class =='train':
             source = '1.5T'
-        elif domain_class =='validate':
+        elif domain_class =='validation':
             source='3.0T'
 
         checker_file=""
         for root, dir, f_names in os.walk(original_dir):
             for f in f_names:
+
                 if f.lower().find(".nii") > -1:
 
                     sourcefile = os.path.join(root, f)
-                    try:
-                        label =self.get_nii_group(ad_class)
 
-                        source_label =source# self.get_nii_source(source)
+                    if sourcefile.find("BSE") <= -1 and sourcefile.find("PVC") <= -1 and sourcefile.find(
+                            "BFC") <= -1:
+                        for fgroup in self.image_group:
 
-                        group_data.append([sourcefile, label, source_label])
+                            if fgroup in sourcefile:
 
-                        if augment_data == True:
-                          sourcefile = sourcefile.replace('.nii','_aug.nii')
-                          group_data.append([sourcefile, label, source_label])
-                        #print("data" ,[sourcefile, label, source_label])
+                                if sourcefile.split(os.sep)[7] != checker_file:
+                                    checker_file = sourcefile.split(os.sep)[7]
 
-                    except (IOError, OSError) as e:
-                        print(e.errno)
-                        sys.exit(2)
+                                    try:
+                                        label =self.get_nii_group(ad_class)
+
+                                        source_label =source# self.get_nii_source(source)
+
+                                        group_data.append([sourcefile, label, source_label])
+
+                                        if augment_data == True:
+                                          sourcefile = sourcefile.replace('.nii','_aug.nii')
+                                          group_data.append([sourcefile, label, source_label])
+                                        #print("data" ,[sourcefile, label, source_label])
+
+                                    except (IOError, OSError) as e:
+                                        print(e.errno)
+                                        sys.exit(2)
+
 
         return  group_data
 
@@ -247,9 +259,9 @@ class Dataset_Import(object):
         if img_label=="AD":
             label=0
         elif img_label=="MCI":
-            label=2
-        elif img_label=="NC":
             label=1
+        elif img_label=="NC":
+            label=2
 
         return  label
 
@@ -397,27 +409,29 @@ class Dataset_Import(object):
         next_ad_pix = [fname
                         for fname in self.readNiiFiles(self.validation_nc_dir,augment_data=False)]
 
-        print(len(next_ad_pix))
+        print(self.readNiiFiles(self.train_ad_dir))
 
-        for i, img_path in enumerate(next_ad_pix):
-            # Set up subplot; subplot indices start at 1
-            #sp = plt.subplot(self.nrows, self.ncols, i + 1)
-            #sp.axis('Off')  # Don't show axes (or gridlines)
-
-            #np.set_printoptions(threshold=np.nan)
-
-            #print(img_path)
-            image_load = nib.load(img_path[0],mmap=False)
-
-
-            print("first_shape ",image_load.get_data().shape)
-            #loads = img_to_array(image_load.get_data())
-
-            #print(loads.shape)
-            #normalizing=normalise_zero_one(loads)
-            #print(normalizing)
-            #print(self.dataAugment(normalizing))
-            #break
+        # print(len(next_ad_pix))
+        #
+        # for i, img_path in enumerate(next_ad_pix):
+        #     # Set up subplot; subplot indices start at 1
+        #     #sp = plt.subplot(self.nrows, self.ncols, i + 1)
+        #     #sp.axis('Off')  # Don't show axes (or gridlines)
+        #
+        #     #np.set_printoptions(threshold=np.nan)
+        #
+        #     #print(img_path)
+        #     image_load = nib.load(img_path[0],mmap=False)
+        #
+        #
+        #     print("first_shape ",image_load.get_data().shape)
+        #     #loads = img_to_array(image_load.get_data())
+        #
+        #     #print(loads.shape)
+        #     #normalizing=normalise_zero_one(loads)
+        #     #print(normalizing)
+        #     #print(self.dataAugment(normalizing))
+        #     #break
 
     #
     def dataAugment(self,image):
@@ -558,7 +572,7 @@ class Dataset_Import(object):
     def next_batch_combined(self,batch_size,data_list=None):
         # Note that the  dimension in the reshape call is set by an assumed batch size set
         batch_data =data_list[self.i:self.i + batch_size]
-        self.set_random_seed(None)
+        self.set_random_seed(random.random_integers(1000))
         batch_data = self.shuffle(batch_data)
 
 
@@ -572,7 +586,7 @@ class Dataset_Import(object):
         elif len(self.img_shape_tuple) == 3:
             for c in range(batch_size):
 
-               yield np.resize(np.asarray(self.convert_batch_to_img_data(batch_data[c])),
+               yield np.resize(np.array(self.convert_batch_to_img_data(batch_data[c])),
                (self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_shape_tuple[2], self.img_channel)),batch_data[c][1],batch_data[c][2]
 
         #yield np.resize(self.convert_batch_to_img_data(batch_data[c]),
@@ -763,7 +777,7 @@ if __name__=="__main__"    :
    try:
         np.set_printoptions(threshold=np.NAN)
         dataset_feed=Dataset_Import()
-        print(dataset_feed.show_image())
+        dataset_feed.show_image()
    except Exception as ex:
       print(ex)
       raise

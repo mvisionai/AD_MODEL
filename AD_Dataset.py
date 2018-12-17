@@ -21,16 +21,14 @@ from tensorflow.contrib.keras.api.keras.preprocessing.image import ImageDataGene
 
 
 
-class Dataset_Import(object):
+class Dataset_Import():
+
 
     def __init__(self):
         self.main_directory=constants.main_image_directory
         self.yaml_stream=constants.yaml_values()
         self.training_part=constants.training_frac
-
         self.i = 0
-        self.valid_source=0
-        self.valid_target=0
         self.auto_shuffling_state=False
         self.trainer_shuffling_state = False
         self.train_ad_fnames = None
@@ -48,7 +46,6 @@ class Dataset_Import(object):
         self.pic_index =constants.pic_index
         self.train_dir =constants.train_dir
         self.validation_dir =constants.validation_dir
-        self.set_epoch=0
         self.set_checker=0
         self.classify_group=constants.classify_group
         # Directory with our training AD dataset
@@ -103,14 +100,16 @@ class Dataset_Import(object):
 
                     sourcefile = os.path.join(root, f)
 
-                    if sourcefile.find("BSE") <= -1 and sourcefile.find("PVC") <= -1 and sourcefile.find(
-                            "BFC") <= -1:
+                    if sourcefile.find("skull_workflow") <= -1 :
                         for fgroup in self.image_group:
 
                             if fgroup in sourcefile:
 
-                                if sourcefile.split(os.sep)[7] != checker_file:
-                                    checker_file = sourcefile.split(os.sep)[7]
+
+
+                                if sourcefile.split(os.sep)[8] != checker_file:
+                                    checker_file = sourcefile.split(os.sep)[8]
+
 
                                     try:
                                         label =self.get_nii_group(ad_class)
@@ -258,9 +257,9 @@ class Dataset_Import(object):
 
         if img_label=="AD":
             label=0
-        elif img_label=="MCI":
-            label=1
         elif img_label=="NC":
+            label=1
+        elif img_label=="MCI":
             label=2
 
         return  label
@@ -340,8 +339,7 @@ class Dataset_Import(object):
 
     def shuffle(self,data):
         data=np.array(data)
-        shuffled = np.take(data, np.random.permutation(len(data)), axis=0, out=data)
-        return  shuffled
+        return  np.take(data, np.random.permutation(len(data)), axis=0, out=data)
 
     def source_training_data(self):
         return self.all_source_data()[0:self.training_number(len(self.all_source_data()))]
@@ -547,13 +545,23 @@ class Dataset_Import(object):
     def validate_source_target(self):
         return self.source_target_combined()[self.training_number(len(self.source_target_combined())) + 1:len(self.source_target_combined()) - 1]
 
+    # @classmethod
+    # def batch_update(cls,batch_size,data_length):
+    #     cls.counter = ( cls.counter + batch_size) % data_length
+    #     return cls.counter
 
 
-    def next_batch_combined_encoder(self,batch_size,data_list=None):
+    def next_batch_combined_gan(self,batch_size,data_list=None):
         # Note that the  dimension in the reshape call is set by an assumed batch size set
 
         batch_data = data_list[self.i:self.i + batch_size]
         self.i = (self.i + batch_size) % len(data_list)
+
+        print("ii",self.i)
+
+        print("batch_data ",batch_data)
+        print("current ",self.i)
+        print("tuple ", self.img_shape_tuple[1])
 
         if len(self.img_shape_tuple) == 2:
 
@@ -573,6 +581,8 @@ class Dataset_Import(object):
         #self.set_random_seed(random.random_integers(1000))
         #batch_data = self.shuffle(batch_data)
 
+        print("batch_data_check ",batch_data)
+
 
         # print("from ",self.i," to ",self.i + batch_size)
         self.i = (self.i + batch_size) % len(data_list)
@@ -585,7 +595,8 @@ class Dataset_Import(object):
             for c in range(batch_size):
 
                yield np.resize(np.array(self.convert_batch_to_img_data(batch_data[c])),
-               (self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_shape_tuple[2], self.img_channel)),batch_data[c][1],batch_data[c][2]
+                                 (self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_shape_tuple[2],
+                                  self.img_channel)),self.all_source_labels(batch_data[c][1], batch_data[c][2])
 
         #yield np.resize(self.convert_batch_to_img_data(batch_data[c]),
                                 #(self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_shape_tuple[2], self.img_channel)),self.all_source_labels(batch_data[c]),self.encode_domain_labels(batch_data[c])
@@ -770,15 +781,15 @@ class Dataset_Import(object):
         r = requests.get('https://frightanic.com/goodies_content/docker-names.php')
         print(r.text.rstrip())
 
-if __name__=="__main__"    :
-
-   try:
-        np.set_printoptions(threshold=np.NAN)
-        dataset_feed=Dataset_Import()
-        dataset_feed.show_image()
-   except Exception as ex:
-      print(ex)
-      raise
-
+# if __name__=="__main__"    :
+#
+#    try:
+#         np.set_printoptions(threshold=np.NAN)
+#         dataset_feed=Dataset_Import()
+#         dataset_feed.show_image()
+#    except Exception as ex:
+#       print(ex)
+#       raise
+#
 
 

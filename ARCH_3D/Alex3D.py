@@ -97,7 +97,7 @@ def inference(inputs, training, dropout_keep_prob, label_cnt):
                 #bias changed
 
 
-def generator(input,reuse=False):
+def model_generator(input,reuse=False):
     with tf.variable_scope("generator",reuse=reuse):
 
         #ENCODER
@@ -322,7 +322,7 @@ def bias_variable(shape):
     return tf.Variable(initial)
 
 
-def accuracy(logits, labels):
+def model_accuracy(logits, labels):
     # accuracy
     with tf.name_scope('accuracy'):
         accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1)), tf.float32))
@@ -338,7 +338,7 @@ def domain_accuracy(logits, labels):
     return accuracy
 
 
-def loss(logits, labels):
+def model_loss(logits, labels):
     with tf.name_scope('loss'):
         loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels))
         tf.summary.scalar('loss', loss)

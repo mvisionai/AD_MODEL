@@ -23,7 +23,7 @@ train_mci_fnames = None
 train_nc_fnames = None
 source="1.5T"
 target="3.0T"
-training_frac=80/100
+training_frac=90/100
 classify_group=["AD",'NC','MCI']
 
 # Index for iterating over images

@@ -193,6 +193,30 @@ def generator_loss(r_logits,f_logits):
 
 
 
+
+def  class_training(input_feed,class_num,drop_out=1,reuse=False):
+
+    with tf.variable_scope("discriminator", reuse=reuse):
+        conv_1 = conv_3d(input_feed, 64, kernerl_size=(11, 11, 11), strides=(3, 3, 3), name="conv_1")
+        max_pool_1 = max_pool3D(conv_1, size_pool=(2, 2, 2), stride=(2, 2, 2))
+
+        conv_2 = conv_3d(max_pool_1, 192, kernerl_size=(2, 2, 2), strides=(2, 2, 2), name="conv_2")
+        max_pool_2 = max_pool3D(conv_2, size_pool=(2, 2, 2), stride=(2, 2, 2))
+
+        conv_3 = conv_3d(max_pool_2, 384, kernerl_size=(3, 3, 3), strides=(1, 1, 1), name="conv_3", padding="SAME")
+        conv_4 = conv_3d(conv_3, 256, kernerl_size=(2, 2, 2), strides=(1, 1, 1), name="conv_4", padding="SAME")
+
+        conv_5 = conv_3d(conv_4, 256, kernerl_size=(2, 3, 3), strides=(2, 3, 3), name="conv_5", padding="SAME")
+        max_pool_5 = max_pool3D(conv_5, size_pool=(2, 2, 2), stride=(2, 2, 2), pad="SAME")
+
+        dense_layer_1 = fully_connect(max_pool_5, unit=2000)
+        drop_out=tf.nn.dropout(dense_layer_1,keep_prob=drop_out)
+        dense_layer_2 = fully_connect(drop_out, unit=512)
+        dense_layer_3 = fully_connect(dense_layer_2, unit=class_num,activate=tf.nn.softmax)
+
+        return  dense_layer_3
+
+
 def gan_loss(logits_in,labels_in):
     return   tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits_in, labels=labels_in))
 

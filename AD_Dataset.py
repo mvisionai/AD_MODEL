@@ -525,8 +525,6 @@ class Dataset_Import(object):
     def source_target_validation(self,source_valid,target_valid):
 
         self.set_random_seed(random.random_integers(1000))
-
-
         return self.shuffle(np.vstack((source_valid,target_valid)))
 
 
@@ -572,8 +570,8 @@ class Dataset_Import(object):
     def next_batch_combined(self,batch_size,data_list=None):
         # Note that the  dimension in the reshape call is set by an assumed batch size set
         batch_data =data_list[self.i:self.i + batch_size]
-        self.set_random_seed(random.random_integers(1000))
-        batch_data = self.shuffle(batch_data)
+        #self.set_random_seed(random.random_integers(1000))
+        #batch_data = self.shuffle(batch_data)
 
 
         # print("from ",self.i," to ",self.i + batch_size)

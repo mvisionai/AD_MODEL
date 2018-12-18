@@ -12,7 +12,7 @@ not_trained=["fc1layer","fc2layer","fc3layer","domain_predictor"]
 # os.kill(os.getpid(), signal.pthread_kill())
 nrows = 24
 ncols = 4
-augment_data=False
+augment_data=True
 
 
 #(20,20,20)

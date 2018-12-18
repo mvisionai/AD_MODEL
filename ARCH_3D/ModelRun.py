@@ -7,12 +7,12 @@ import AD_Constants as constant
 import time
 import tensorflow as tf
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = " "
 
 
 # from ARCH_3D import Alex3D as model
 
-os.environ["CUDA_VISIBLE_DEVICES"]=""
+#os.environ["CUDA_VISIBLE_DEVICES"]=""
 
 class Main_run(Dataset_Import):
 
@@ -22,8 +22,9 @@ class Main_run(Dataset_Import):
         super().__init__()
         self.now = datetime.now()
         self.training_epoch = 500
-        self.gan_epoch = 100
-        self.batch_size = 3
+        self.gan_epoch = 200
+        self.train_epoch=200
+        self.batch_size = 2
         self.validation_interval = 20
         self.keep_prob = 0.50
         self.learn_rate_gan = 0.001
@@ -35,6 +36,9 @@ class Main_run(Dataset_Import):
         self.check_point = os.path.join(self.check_point_path, "saved_weights");
         self.train_weight_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "train_weights");
         self.train_weights = os.path.join(self.train_weight_dir, "weights_trained");
+        self.summary_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "summaries");
+        self.gan_summary=os.path.join(self.summary_path, "gan");
+        self.train_summary=os.path.join(self.summary_path, "train");
         self.image_depth = constant.img_shape_tuple[0]  # image size
         self.image_height = constant.img_shape_tuple[1]  # image size
         self.image_width = constant.img_shape_tuple[2]  # image size
@@ -62,6 +66,7 @@ class Main_run(Dataset_Import):
         D_fake_loss = gan_loss(D_logits_fake, tf.zeros_like(D_logits_real))
 
         D_loss = D_real_loss + D_fake_loss
+        tf.summary.scalar('discriminator_loss',D_loss)
 
         G_loss = gan_loss(D_logits_fake, tf.ones_like(D_logits_fake))
 
@@ -71,17 +76,23 @@ class Main_run(Dataset_Import):
         g_vars = [var for var in tvars if "generator" in var.name]
 
         # OPTIMIZERS
+
         D_trainer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(D_loss, var_list=d_vars)
         G_trainer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(G_loss, var_list=g_vars)
+
+
+        #self.train_gan_opt=tf.group(G_trainer,D_trainer)
 
         # print([v.name for v in d_vars])
 
         saver = tf.train.Saver(var_list=g_vars)
+        merged_summary = tf.summary.merge_all()
 
         source_1T_data = self.shuffle(self.all_source_data(augment_data=self.data_augmentation))
-        source_3T_data = self.all_target_data()
+        source_3T_data = self.all_target_data(augment_data=self.data_augmentation)
         all_data_gan = self.source_target_validation(source_1T_data, source_3T_data)
-        num_batches = int(len(all_data_gan) / self.batch_size)
+        total_data_length=len(all_data_gan)
+        num_batches = int(total_data_length/ self.batch_size)
 
         print("batch_num ", num_batches)
         print("total num ", len(all_data_gan))
@@ -95,28 +106,41 @@ class Main_run(Dataset_Import):
 
 
         with tf.Session() as sess:
+            gan_sum_writer = tf.summary.FileWriter(self.gan_summary,sess.graph)
             sess.run(tf.global_variables_initializer())
-            # Recall an epoch is an entire run through the training data
+            # Recall an epoch is an entire run through the training data   self.gan_epoch
             for epoch in range(self.gan_epoch):
                 # // indicates classic division
                 self.set_random_seed(np.random.random_integers(1000))
-                shuffle_data = all_data_gan
+                shuffle_data =  self.shuffle(all_data_gan)
+                counter=0   #num_batches
+
+                print("Currently on Epoch {} of {} total...".format(epoch + 1, self.gan_epoch))
                 for i in range(num_batches):
                     # Grab batch of images
-                    feed = self.next_batch_combined_gan(self.batch_size, shuffle_data)
+
+                    feed = self.next_batch_combined_gan(self.batch_size,shuffle_data[counter:counter + self.batch_size])
                     batch_images = [data for data in feed]
 
                     # Run optimizers, no need to save outputs, we won't use them
-                    _, disc_loss = sess.run([D_trainer, D_loss],
-                                            feed_dict={real_inputs: [data for data in batch_images],
-                                                       generated_input: [data for data in batch_images],
-                                                       learning_rate: self.learn_rate_gan})
-                    _ = sess.run(G_trainer, feed_dict={generated_input: [data for data in batch_images],
+                    _ = sess.run(G_trainer, feed_dict={generated_input: batch_images,
                                                        learning_rate: self.learn_rate_gan})
 
-                print("Currently on Epoch {} of {} total...".format(epoch + 1, self.gan_epoch))
+                    _, disc_loss,gan_summary = sess.run([D_trainer, D_loss,merged_summary],
+                                            feed_dict={real_inputs:batch_images,
+                                                       generated_input:batch_images,
+                                                       learning_rate: self.learn_rate_gan})
+
+                    _ = sess.run(G_trainer, feed_dict={generated_input:batch_images,
+                                                       learning_rate: self.learn_rate_gan})
+                    counter = (counter + self.batch_size) % total_data_length
+                    print('GAN Epoch %d/%d, batch %d/%d is finished!' % (epoch+1,self.gan_epoch,i+1,num_batches))
+                    print("\t\tGAN Loss: {:.6f}".format(disc_loss))
+
+
                 print("Epoch Loss {:.6f} ".format(disc_loss))
                 print(" ", end="\n")
+                gan_sum_writer.add_summary(gan_summary, global_step=epoch)
                 saver.save(sess, self.check_point)
                 # samples.append(gen_sample)
 
@@ -143,7 +167,8 @@ class Main_run(Dataset_Import):
         # OPTIMIZER
         train_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
 
-        saver = tf.train.Saver()
+
+        train_merged_summary = tf.summary.merge_all()
 
         self.set_random_seed(np.random.random_integers(1000))
         source_1T_data = self.shuffle(self.all_source_data(augment_data=self.data_augmentation))
@@ -152,40 +177,62 @@ class Main_run(Dataset_Import):
 
         training_data = self.training_data_source(all_available_data)
         validation_data = self.validation_data_source(all_available_data)
+        total_data_length=len(training_data)
+        num_batches = int(total_data_length / self.batch_size)
 
-        num_batches = int(len(training_data) / self.batch_size)
+        tvars = tf.trainable_variables()
+        res_vars = [var for var in tvars if "generator" in var.name]
+
+        print(res_vars)
+
+
 
         with tf.Session() as sess:
+            train_sum_writer = tf.summary.FileWriter(self.train_summary, sess.graph)
             sess.run(tf.global_variables_initializer())
+            tf.stop_gradient('generator/conv_5/kernel:0')
             # Recall an epoch is an entire run through the training data
-            latest_ckp = tf.train.latest_checkpoint(self.check_point_path)
-            self.saver.restore(sess, latest_ckp)
-            for epoch in range(self.gan_epoch):
+            #latest_ckp = tf.train.latest_checkpoint(self.check_point_path)
+            #print(latest_ckp)
+            #saver.restore(sess, latest_ckp)
+            res_saver= tf.train.import_meta_graph(os.path.join(self.check_point_path,"saved_weights.meta"))
+            res_saver.restore(sess,self.check_point)
+
+            #print(sess.run('generator/conv_5/kernel:0'))
+
+
+            #exit(1)
+            for epoch in range(2):
                 # // indicates classic division
                 self.set_random_seed(np.random.random_integers(1000))
                 shuffle_data = self.shuffle(training_data)
-                for i in range(num_batches):
+                counter = 0
+
+                print("Currently on Epoch {} of {} total...".format(epoch + 1, self.train_epoch))
+                for i in range(2):
                     # Grab batch of images
-                    batch_images = np.asarray(
-                        [data for data in self.next_batch_combined(self.batch_size, shuffle_data)])
+                    batch_images = np.asarray([data for data in self.next_batch_combined(self.batch_size,shuffle_data[counter:counter + self.batch_size])])
 
                     # Run optimizers, no need to save outputs, we won't use them
-                    _, train_accuracy, train_loss = sess.run([train_optimizer, accuracy, loss],
+                    _, train_accuracy, train_loss,train_summary = sess.run([train_optimizer, accuracy, loss,train_merged_summary],
                                                              feed_dict={data_feed: list(batch_images[0:, 0]),
                                                                         data_labels: list(batch_images[0:, 1]),
                                                                         dropout_prob: self.keep_prob,
                                                                         learning_rate: self.learn_rate_con})
 
-                print("Currently on Epoch {} of {} total...".format(epoch + 1, self.gan_epoch))
+                    counter = (counter + self.batch_size) % total_data_length
+                    print('Training Epoch %d/%d, batch %d/%d is finished!' % (epoch + 1, self.gan_epoch, i + 1, num_batches))
+                    print("\t\tTraining Acc: {:.6f}".format(train_accuracy))
+                    print("\t\tTraining Loss: {:.6f}".format(train_accuracy))
+
                 print("Training Loss {:.6f} ".format(train_loss))
                 print("Training Acc. {:.6f} ".format(train_accuracy))
                 print(" ", end="\n")
-
-                # Sample from generator as we're training for viewing afterwards
-
-                # gen_sample = sess.run(generator(generated_input, reuse=True), feed_dict={generated_input: sample_z})
-                saver.save(sess, self.train_weights)
+                #saver.save(sess, self.train_weights)
+                train_sum_writer.add_summary(train_summary, global_step=epoch)
                 # samples.append(gen_sample)
+
+
 
                 # MODEL VALIDATION
 
@@ -202,14 +249,13 @@ class Main_run(Dataset_Import):
 if __name__ == '__main__':
 
     try:
-        run = Main_run(gan_training=True, model_train=True)
+        run = Main_run(gan_training=True, model_train=False)
 
         if run.train_gan:
             run.gan_training()
 
         if run.model_train:
-            pass
-        # run.main_model()
+           run.main_model()
 
 
     except Exception as e:

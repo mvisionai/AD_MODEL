@@ -18,6 +18,9 @@ __pycache__/**
 
 summaries/
 
+ARCH_3D/summaries
+ARCH_3D/model_weights
+
 ARCH_3D/np_data
 
 # Generated files

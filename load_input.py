@@ -1,4 +1,4 @@
-# loading the data sets (training, validation, auto)
+# loading the data sets (training, validation, gan)
 # each input set must be: (#images, dim1, dim2, dim3, 1)
 # The corresponding label must be: (#images, #classes)
 import numpy as np

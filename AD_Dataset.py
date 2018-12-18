@@ -114,7 +114,7 @@ class Dataset_Import():
                                     try:
                                         label =self.get_nii_group(ad_class)
 
-                                        source_label =source# self.get_nii_source(source)
+                                        source_label =self.get_nii_source(source)
 
                                         group_data.append([sourcefile, label, source_label])
 
@@ -551,17 +551,12 @@ class Dataset_Import():
     #     return cls.counter
 
 
-    def next_batch_combined_gan(self,batch_size,data_list=None):
+    def next_batch_combined_gan(self,batch_size,batch_data=None):
         # Note that the  dimension in the reshape call is set by an assumed batch size set
 
-        batch_data = data_list[self.i:self.i + batch_size]
-        self.i = (self.i + batch_size) % len(data_list)
+        #batch_data = data_list[data_offset:data_offset + batch_size]
 
-        print("ii",self.i)
-
-        print("batch_data ",batch_data)
-        print("current ",self.i)
-        print("tuple ", self.img_shape_tuple[1])
+        #print("batch_data ",batch_data)
 
         if len(self.img_shape_tuple) == 2:
 
@@ -575,17 +570,9 @@ class Dataset_Import():
              yield np.resize(self.convert_batch_to_img_data(batch_data[c]), (self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_shape_tuple[2], self.img_channel))
 
 
-    def next_batch_combined(self,batch_size,data_list=None):
+    def next_batch_combined(self,batch_size,batch_data=None):
         # Note that the  dimension in the reshape call is set by an assumed batch size set
-        batch_data =data_list[self.i:self.i + batch_size]
-        #self.set_random_seed(random.random_integers(1000))
-        #batch_data = self.shuffle(batch_data)
 
-        print("batch_data_check ",batch_data)
-
-
-        # print("from ",self.i," to ",self.i + batch_size)
-        self.i = (self.i + batch_size) % len(data_list)
 
         if len(self.img_shape_tuple) == 2:
             for c in range(batch_size):
@@ -594,9 +581,11 @@ class Dataset_Import():
         elif len(self.img_shape_tuple) == 3:
             for c in range(batch_size):
 
+
+
                yield np.resize(np.array(self.convert_batch_to_img_data(batch_data[c])),
                                  (self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_shape_tuple[2],
-                                  self.img_channel)),self.all_source_labels(batch_data[c][1], batch_data[c][2])
+                                  self.img_channel)),self.all_source_labels(batch_data[c]), self.encode_domain_labels(batch_data[c])
 
         #yield np.resize(self.convert_batch_to_img_data(batch_data[c]),
                                 #(self.img_shape_tuple[0], self.img_shape_tuple[1], self.img_shape_tuple[2], self.img_channel)),self.all_source_labels(batch_data[c]),self.encode_domain_labels(batch_data[c])
@@ -624,9 +613,12 @@ class Dataset_Import():
     def all_source_labels(self, batch_data):
         data = batch_data
         col = 1
+
+
         encoded_label = self.one_hot_encode(np.hstack([int(data[col])]))
         #self.one_hot_encode([ int((data[i][col])) for i in range(len(data))])
         #print("valie",np.hstack([int(data[col])]))
+        print(encoded_label)
         return encoded_label[0]
 
     def encode_domain_labels(self,batch_data):
